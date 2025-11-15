@@ -139,7 +139,6 @@ cd ~/whatsapp-transcriber
 ├── .gitignore              # Ignores logs, database, and cache
 ├── LICENSE                 # MIT License
 ├── README.md               # This guide (English)
-├── README_DE.md            # German guide
 ├── app.py                  # The Python Flask server (Backend)
 ├── index.html              # The Bilingual Web App (Frontend)
 └── termux-widget-scripts/
