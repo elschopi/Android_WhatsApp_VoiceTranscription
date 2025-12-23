@@ -254,6 +254,47 @@ You should see the "WhatsApp Transcriber" interface:
 
 ---
 
+## Language of the UI and transcriptions
+
+The web UI and the default transcription language are controlled by a simple language switcher in `index.html`.
+
+### Default behavior
+
+By default, the app automatically chooses the language based on your browser / device language:
+
+- If your browser language starts with `de` (e.g. `de-DE`):
+  - The UI will be shown in **German**.
+  - For Groq and Gemini, the backend will request **German** transcriptions.
+  - For local `whisper.cpp`, the backend **always** uses German (hard‑coded), regardless of UI language.
+- Otherwise:
+  - The UI will be shown in **English**.
+  - For Groq and Gemini, the backend will request **English** transcriptions (or at least non‑German).
+
+You don’t have to configure anything for this – it just follows your browser language.
+
+### Changing the UI language without changing system language
+
+If you don’t want to change your whole device language, you have two options:
+
+#### 1. Per‑browser setting (recommended, if available)
+
+Some browsers allow you to override the preferred language just for the browser:
+
+- In Chrome/Firefox/Edge, look for “Languages” in the browser settings.
+- Move **English** or **Deutsch** to the top, depending on what you prefer.
+- Reload `http://127.0.0.1:5000` – the UI should switch.
+
+#### 2. Force a fixed language in `index.html` (for power users)
+
+If you want the UI to **always** be in one language regardless of browser settings, you can hard‑code it:
+
+1. Open `index.html` in an editor.
+2. Find the JavaScript section at the bottom with:
+
+   ```js
+   let currentLanguage = 'en'; 
+   let T = translations[currentLanguage];
+
 ## Termux widget (optional)
 
 The repository includes Termux widget scripts to quickly start/stop the transcriber via the Android home screen.
