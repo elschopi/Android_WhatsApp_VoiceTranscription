@@ -1,148 +1,70 @@
-﻿# WhatsApp Voice Note Transcriber for Termux
+﻿# WhatsApp Voice Transcription (Android / Termux)
 
-This project turns your Android phone into a private transcription server. It uses Termux to run a small Python web server that finds your WhatsApp voice notes, lists them in a clean web interface (accessed via your phone's browser), and transcribes them using the Google Gemini API.
+A small self‑hosted tool to browse and transcribe your WhatsApp voice notes directly on your Android phone using Termux, a local Flask server, and a simple web UI.
 
-Transcribed messages are saved to a local SQLite database (`transcripts.db`), so the next time you load the app, they appear instantly with their transcription and aren't processed again.
+- No WhatsApp modification / root required
+- Reads your existing `.opus` voice notes from WhatsApp’s media folder
+- Transcription providers:
+  - **Groq Whisper API** (online, fast, good accuracy)
+  - **Local `whisper.cpp`** (offline, best for German, slower)
+  - **Google Gemini** (online, via Generative Language API)
+- Web UI with English / German language support
+- Optional Termux widget scripts to quickly start/stop the transcriber
 
-## Features
+> **Privacy note:**  
+> The script never uploads your WhatsApp audio files to GitHub. They are only read from local storage on your device.  
+> API keys and other secrets are **not** stored in this repository and must be provided via environment variables on your own device.
 
--   **Bilingual Web Interface:** Automatically detects browser language (German/English) and sets the UI text.
-    
--   **Gemini API:** Uses Google's Gemini API, which natively understands `.opus` files (no conversion needed).
-    
--   **Local Database:** Remembers previously transcribed messages.
-    
--   **Termux Widget Support:** Includes scripts to start/stop the server from your homescreen.
-    
--   **Wakelock Handling:** Scripts automatically acquire a Termux wakelock to prevent Android from killing the server in the background.
-    
--   **Privacy-Focused:** Audio files are only sent to the API when you explicitly transcribe them. The web server runs entirely locally.
-    
+---
 
-## Prerequisites: Required Apps
+## How it works
 
-Install these apps (ideally from **F-Droid**, as the Google Play Store versions of Termux are deprecated):
+1. **Storage access:**  
+   The Flask app runs in Termux on your Android device and scans your WhatsApp voice notes directory, for example:
 
-1.  **Termux:** The main terminal environment.
-    
-2.  **Termux:API** (App): Provides the bridge between Termux and native Android functions.
-    
-3.  **Termux:Widget:** Allows you to place script launchers (widgets) on your homescreen.
-    
+   - `~/storage/shared/Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Voice Notes`
+   - or `~/storage/shared/WhatsApp/Media/WhatsApp Voice Notes`
 
-## Installation Guide
+2. **Web UI:**  
+   Opening `http://127.0.0.1:5000` in a browser on your phone shows a Tailwind‑based interface where you:
 
-### Step 1: Clone This Repository
+   - Press **“Nachrichten suchen / Find Messages”** to load recent voice messages  
+   - Select messages (or all)  
+   - Choose transcription provider: **Groq**, **Local Whisper**, or **Gemini**  
+   - Start transcription and see results inline per message (and in a log panel)
 
-In Termux, clone this repository to a location you choose, for example `~/whatsapp-transcriber`.
+3. **Transcription providers:**
+   - **Groq Whisper**: remote API (`whisper-large-v3`) with good speed and accuracy.
+   - **Local whisper.cpp**: uses `whisper-cli` binary and a local `ggml-large-v3.bin` model.
+     - Optimized in this project for **German** voice notes; language is forced to `de`.
+   - **Gemini**: Google Generative Language API, used with a prompt to get pure text transcriptions.
 
-```
-pkg install git
-git clone [https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git](https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git) ~/whatsapp-transcriber
-cd ~/whatsapp-transcriber
+4. **Database caching:**
+   - A small SQLite database (`transcripts.db`) stores transcriptions keyed by file path.
+   - Already transcribed messages are displayed as “transcribed” cards with cached text and no re‑API calls.
 
-```
+---
 
-### Step 2: Set Up Termux Environment
+## Requirements
 
-1.  **Install Packages:** Install Python, Termux:API, and nano (or your preferred editor).
-    
-    ```
-    pkg update && pkg upgrade -y
-    pkg install python termux-api nano -y
-    
-    ```
-    
-2.  **Install Python Libraries:**
-    
-    ```
-    pip install flask requests
-    
-    ```
-    
-3.  **Grant Storage Access:**
-    
-    ```
-    termux-setup-storage
-    
-    ```
-    
-    (You must approve the Android permission dialog that pops up.)
-    
+- **Android phone** with WhatsApp installed
+- **Termux** app (from F‑Droid or the official source)
+- Termux storage permission (`termux-setup-storage`)
+- **Python 3** in Termux
+- **ffmpeg** (for audio conversion when using `whisper.cpp`)
+- Optionally:
+  - `whisper.cpp` built on the device (for offline transcription)
+  - Valid **Groq API key** (for remote Whisper)
+  - Valid **Google Gemini API key**
 
-### Step 3: Set Your Google Gemini API Key
+---
 
-1.  Go to [Google AI Studio](https://aistudio.google.com/ "null") and create an API key.
-    
-2.  Save the key in your Termux environment. The start script will automatically load this.
-    
-    (Replace YOUR_API_KEY_HERE with your actual key.)
-    
-    ```
-    echo 'export GEMINI_API_KEY="YOUR_API_KEY_HERE"' >> ~/.bashrc
-    source ~/.bashrc
-    
-    ```
-    
+## Installation (Termux / Android)
 
-### Step 4: Install the Widget Scripts
+### 1. Install Termux and grant storage
 
-1.  **Create the shortcuts folder:**
-    
-    ```
-    mkdir -p ~/.shortcuts
-    
-    ```
-    
-2.  **Copy the scripts** from this repository into the shortcuts folder:
-    
-    ```
-    cp ~/whatsapp-transcriber/termux-widget-scripts/*.sh ~/.shortcuts/
-    
-    ```
-    
-3.  **Make the scripts executable (CRITICAL):**
-    
-    ```
-    chmod +x ~/.shortcuts/start_transcriber.sh
-    chmod +x ~/.shortcuts/stop_transcriber.sh
-    
-    ```
-    
+1. Install **Termux** from F‑Droid or the official source (not from random Play Store clones).
+2. Open Termux and run:
 
-### Step 5: Add the Widget
-
-1.  Go to your Android Homescreen.
-    
-2.  Long-press an empty space and select "Widgets".
-    
-3.  Find and add the "Termux:Widget".
-    
-4.  The widget should now show `start_transcriber.sh` and `stop_transcriber.sh`.
-    
-
-## How to Use
-
-1.  **Start:** Tap the `start_transcriber.sh` widget on your homescreen. Your browser should automatically open and load `http://localhost:5000`.
-    
-2.  **Find:** Tap "Find Messages". The server will scan your WhatsApp folders.
-    
-3.  **Transcribe:** Select one or more messages and tap the blue "Transcribe" button.
-    
-4.  **Stop:** When you're finished, tap the `stop_transcriber.sh` widget. This stops the server and releases the wakelock to save battery.
-    
-
-## Project Structure
-
-```
-/
-├── .gitignore              # Ignores logs, database, and cache
-├── LICENSE                 # MIT License
-├── README.md               # This guide (English)
-├── app.py                  # The Python Flask server (Backend)
-├── index.html              # The Bilingual Web App (Frontend)
-└── termux-widget-scripts/
-    ├── start_transcriber.sh    # Homescreen start script
-    └── stop_transcriber.sh     # Homescreen stop script
-
-```
+   ```bash
+   termux-setup-storage

@@ -1,8 +1,7 @@
 <!DOCTYPE html>
 <html lang="de" class="dark">
-
 <head>
-    <meta charset="UTF-R-8">
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title data-i18n="docTitle">WhatsApp Transcriber</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -16,14 +15,16 @@
             background-color: #1f2937;
             transform: scale(1.02);
         }
+        .provider-unavailable {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
     </style>
     <script>
         tailwind.config = { darkMode: 'class' }
     </script>
 </head>
-
 <body class="bg-gray-900 text-gray-300 font-sans leading-normal tracking-tight p-4 md:p-8">
-
     <div class="max-w-2xl mx-auto">
         <!-- TITEL -->
         <header class="mb-6">
@@ -59,6 +60,24 @@
                 </button>
             </div>
 
+            <!-- Provider Auswahl -->
+            <div class="mb-3 flex items-center justify-between gap-3 bg-gray-700/50 p-2 rounded-lg border border-gray-600">
+                <label for="provider-select" class="text-sm text-gray-300 font-medium pl-1">
+                    <span data-i18n="providerLabel">Provider:</span>
+                </label>
+                <select id="provider-select" 
+                    class="bg-gray-600 text-white text-sm rounded-md px-3 py-1.5 border border-gray-500 focus:ring-emerald-500 focus:border-emerald-500 block">
+                    <option value="groq" data-i18n-option="providerGroq">Groq (Whisper API)</option>
+                    <option value="local" data-i18n-option="providerLocal">Local Whisper (large-v3)</option>
+                    <option value="gemini" data-i18n-option="providerGemini">Gemini</option>
+                </select>
+            </div>
+
+            <!-- Provider Status Anzeige -->
+            <div id="provider-status" class="mb-3 text-xs text-gray-400 px-2 hidden">
+                <span data-i18n="providerStatusLoading">Prüfe Provider-Verfügbarkeit...</span>
+            </div>
+
             <!-- Transkribieren Button -->
             <button id="transcribe-btn"
                 class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-5 rounded-lg shadow-lg transition-all duration-200 flex items-center justify-center gap-2"
@@ -82,19 +101,17 @@
             </div>
         </main>
 
-        <!-- GLOBALES STATUS-FENSTER (für Fehler/Logs) -->
+        <!-- GLOBALES STATUS-FENSTER -->
         <div id="status-container" class="mt-8">
             <h3 class="text-xl font-semibold text-white mb-3" data-i18n="logHeader">Log</h3>
             <div id="status-log" class="h-48 p-4 bg-gray-800 rounded-lg shadow-inner overflow-y-auto font-mono text-sm text-gray-400 border border-gray-700">
                 <p data-i18n="logReady">Bereit. Warte auf Aktion.</p>
             </div>
         </div>
-
-    </div> <!-- Ende max-w-2xl -->
-
+    </div>
 
     <script>
-        // --- NEU: Internationalisierung (i18n) ---
+        // --- Internationalisierung (i18n) ---
         const translations = {
             "en": {
                 "docTitle": "WhatsApp Transcriber",
@@ -125,7 +142,14 @@
                 "errorNoOpusFiles": "No .opus files found in folder.",
                 "errorNoMessagesFound": "No messages found or error during processing.",
                 "timeUnit": " ",
-                "waitingForTranscription": "Waiting for transcription..."
+                "waitingForTranscription": "Waiting for transcription...",
+                "providerLabel": "AI Provider:",
+                "providerGroq": "Groq (Whisper API)",
+                "providerLocal": "Local Whisper (large-v3)",
+                "providerGemini": "Gemini",
+                "providerStatusLoading": "Checking provider availability...",
+                "providerUnavailable": (provider) => `${provider} is not available`,
+                "providerLocalInfo": "Local Whisper provides best accuracy for German (10-20s per message)"
             },
             "de": {
                 "docTitle": "WhatsApp Transkribierer",
@@ -156,12 +180,24 @@
                 "errorNoOpusFiles": "Keine .opus-Dateien im Ordner gefunden.",
                 "errorNoMessagesFound": "Keine Nachrichten gefunden oder Fehler beim Verarbeiten.",
                 "timeUnit": " Uhr",
-                "waitingForTranscription": "Warte auf Transkription..."
+                "waitingForTranscription": "Warte auf Transkription...",
+                "providerLabel": "Anbieter:",
+                "providerGroq": "Groq (Whisper API)",
+                "providerLocal": "Lokales Whisper (large-v3)",
+                "providerGemini": "Gemini",
+                "providerStatusLoading": "Prüfe Provider-Verfügbarkeit...",
+                "providerUnavailable": (provider) => `${provider} ist nicht verfügbar`,
+                "providerLocalInfo": "Lokales Whisper bietet beste Genauigkeit für Deutsch (10-20s pro Nachricht)"
             }
         };
 
-        let currentLanguage = 'en'; // Standard
-        let T = translations[currentLanguage]; // Aktives Übersetzungs-Objekt
+        let currentLanguage = 'en'; 
+        let T = translations[currentLanguage];
+        let providerStatus = {
+            groq: false,
+            gemini: false,
+            local: false
+        };
 
         function setLanguage(lang) {
             currentLanguage = lang;
@@ -171,7 +207,6 @@
             document.querySelectorAll('[data-i18n]').forEach(el => {
                 const key = el.dataset.i18n;
                 if (T[key] && typeof T[key] === 'string') {
-                    // Verarbeite statische Text-Elemente
                     if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
                         el.placeholder = T[key];
                     } else {
@@ -179,8 +214,14 @@
                     }
                 }
             });
-            
-            // Behandle dynamisch geladene Elemente neu (von htmx)
+
+            document.querySelectorAll('[data-i18n-option]').forEach(el => {
+                const key = el.dataset.i18nOption;
+                if (T[key]) {
+                    el.textContent = T[key];
+                }
+            });
+
             document.querySelectorAll('[data-i18n="timeUnit"]').forEach(el => el.textContent = T.timeUnit);
             document.querySelectorAll('[data-i18n="waitingForTranscription"]').forEach(el => el.textContent = T.waitingForTranscription);
             document.querySelectorAll('[data-i18n="errorFolderNotFound"]').forEach(el => el.textContent = T.errorFolderNotFound);
@@ -196,11 +237,66 @@
                 setLanguage('en');
             }
         }
-        // --- Ende i18n ---
 
+        async function checkProviderStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const status = await response.json();
+                providerStatus = {
+                    groq: status.groq_available,
+                    gemini: status.gemini_available,
+                    local: status.local_whisper_available
+                };
 
-        document.addEventListener('DOMContentLoaded', (event) => {
+                updateProviderSelect();
+
+                const statusDiv = document.getElementById('provider-status');
+                const unavailable = [];
+                if (!providerStatus.groq) unavailable.push('Groq');
+                if (!providerStatus.gemini) unavailable.push('Gemini');
+                if (!providerStatus.local) unavailable.push('Local Whisper');
+
+                if (unavailable.length > 0) {
+                    statusDiv.textContent = T.providerUnavailable(unavailable.join(', '));
+                    statusDiv.classList.remove('hidden');
+                } else {
+                    statusDiv.classList.add('hidden');
+                }
+
+                log(`Provider Status: Groq=${providerStatus.groq}, Gemini=${providerStatus.gemini}, Local=${providerStatus.local}`, 'info');
+            } catch (error) {
+                log(`Fehler beim Prüfen der Provider: ${error.message}`, 'error');
+            }
+        }
+
+        function updateProviderSelect() {
+            const select = document.getElementById('provider-select');
+            const options = select.querySelectorAll('option');
+
+            options.forEach(option => {
+                const provider = option.value;
+                if (!providerStatus[provider]) {
+                    option.disabled = true;
+                    option.textContent += ' (nicht verfügbar)';
+                    option.classList.add('provider-unavailable');
+                }
+            });
+
+            const currentValue = select.value;
+            if (!providerStatus[currentValue]) {
+                if (providerStatus.local) {
+                    select.value = 'local';
+                } else if (providerStatus.groq) {
+                    select.value = 'groq';
+                } else if (providerStatus.gemini) {
+                    select.value = 'gemini';
+                }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
             detectLanguage();
+            checkProviderStatus();
 
             const messageList = document.getElementById('message-list');
             const transcribeBtn = document.getElementById('transcribe-btn');
@@ -209,6 +305,7 @@
             const selectAllBtn = document.getElementById('select-all-btn');
             const deselectAllBtn = document.getElementById('deselect-all-btn');
             const statusLog = document.getElementById('status-log');
+            const providerSelect = document.getElementById('provider-select');
 
             let isTranscribing = false;
 
@@ -272,6 +369,12 @@
                 updateTranscribeButton();
             });
 
+            providerSelect.addEventListener('change', () => {
+                if (providerSelect.value === 'local') {
+                    log(T.providerLocalInfo, 'info');
+                }
+            });
+
             transcribeBtn.addEventListener('click', async () => {
                 if (isTranscribing) return;
 
@@ -283,10 +386,16 @@
                     return;
                 }
 
+                const selectedProvider = providerSelect.value;
+                if (!providerStatus[selectedProvider]) {
+                    log(`Provider ${selectedProvider} ist nicht verfügbar!`, 'error');
+                    return;
+                }
+
                 isTranscribing = true;
                 transcribeBtn.disabled = true;
                 transcribeSpinner.classList.remove('hidden');
-                log(T.logStart(pathsToTranscribe.length));
+                log(T.logStart(pathsToTranscribe.length) + ` (Provider: ${selectedProvider})`);
 
                 let successCount = 0;
                 for (let i = 0; i < pathsToTranscribe.length; i++) {
@@ -303,7 +412,11 @@
                         const response = await fetch('/api/transcribe', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ path: path, lang: currentLanguage })
+                            body: JSON.stringify({ 
+                                path: path, 
+                                lang: currentLanguage,
+                                provider: selectedProvider
+                            })
                         });
 
                         const result = await response.json();
@@ -362,6 +475,5 @@
             });
         });
     </script>
-
 </body>
 </html>
