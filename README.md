@@ -1,9 +1,9 @@
 # WhatsApp Voice Transcription (Android / Termux)
 
-A small self‑hosted tool to browse and transcribe your WhatsApp voice notes directly on your Android phone using Termux, a local Flask server, and a simple web UI.
+A small self-hosted tool to browse and transcribe your WhatsApp voice notes directly on your Android phone using Termux, a local Flask server, and a simple web UI.
 
 - No WhatsApp modification / root required
-- Reads your existing `.opus` voice notes from WhatsApp’s media folder
+- Reads your existing `.opus` voice notes from WhatsApp's media folder
 - Transcription providers:
   - **Groq Whisper API** (online, fast, good accuracy)
   - **Local `whisper.cpp`** (offline, best for German, slower)
@@ -26,7 +26,7 @@ A small self‑hosted tool to browse and transcribe your WhatsApp voice notes di
    - or `~/storage/shared/WhatsApp/Media/WhatsApp Voice Notes`
 
 2. **Web UI:**  
-   Opening `http://127.0.0.1:5000` in a browser on your phone shows a Tailwind‑based interface where you:
+   Opening `http://127.0.0.1:5000` in a browser on your phone shows a Tailwind-based interface where you:
 
    - Press **“Nachrichten suchen / Find Messages”** to load recent voice messages  
    - Select messages (or all)  
@@ -36,19 +36,19 @@ A small self‑hosted tool to browse and transcribe your WhatsApp voice notes di
 3. **Transcription providers:**
    - **Groq Whisper**: remote API (`whisper-large-v3`) with good speed and accuracy.
    - **Local whisper.cpp**: uses `whisper-cli` binary and a local `ggml-large-v3.bin` model.
-     - Optimized in this project for **German** voice notes; language is forced to `de`.
+     - Optimized in this project for **German** voice notes; language is forced to `de` by default.
    - **Gemini**: Google Generative Language API, used with a prompt to get pure text transcriptions.
 
 4. **Database caching:**
    - A small SQLite database (`transcripts.db`) stores transcriptions keyed by file path.
-   - Already transcribed messages are displayed as "transcribed" cards with cached text and no re‑API calls.
+   - Already transcribed messages are displayed as "transcribed" cards with cached text and no re-API calls.
 
 ---
 
 ## Requirements
 
 - **Android phone** with WhatsApp installed
-- **Termux** app (from F‑Droid or the official source)
+- **Termux** app (from F-Droid or the official source)
 - Termux storage permission (`termux-setup-storage`)
 - **Python 3** in Termux
 - **ffmpeg** (for audio conversion when using `whisper.cpp`)
@@ -63,7 +63,7 @@ A small self‑hosted tool to browse and transcribe your WhatsApp voice notes di
 
 ### 1. Install Termux and grant storage
 
-1. Install **Termux** from F‑Droid or the official source (not from random Play Store clones).
+1. Install **Termux** from F-Droid or the official source (not from random Play Store clones).
 2. Open Termux and run:
 
    ```bash
@@ -116,7 +116,7 @@ pip install flask requests
 
 ## Configuring transcription providers
 
-The Flask app uses environment variables to configure providers. **Do not hard‑code keys into the repo.**
+The Flask app uses environment variables to configure providers. **Do not hard-code keys into the repo.**
 
 ### Environment variables
 
@@ -179,7 +179,7 @@ The app checks:
 
 If both exist, **Local Whisper** will be available and selectable in the UI.
 
-> **Note:** In this project, local Whisper is hard‑wired to German:
+> **Note:** In this project, local Whisper is hard-wired to German by default:
 > - The backend forces `lang = "de"` for `whisper.cpp`.
 > - This gives best results for German WhatsApp voice messages.
 
@@ -235,7 +235,7 @@ You should see the "WhatsApp Transcriber" interface:
 
 3. Choose provider:
    - **Groq** – remote Whisper API
-   - **Local Whisper** – offline `whisper.cpp` (forced German)
+   - **Local Whisper** – offline `whisper.cpp` (forced German by default)
    - **Gemini** – Google Generative Language API
 
    If a provider is unavailable (no API key or missing binary/model), it appears disabled and labeled as not available.
@@ -245,55 +245,148 @@ You should see the "WhatsApp Transcriber" interface:
    - For each selected message, you see:
      - A short status line ("Transcribing…")
      - The final transcription (or an error message)
-   - Successfully transcribed messages become semi‑transparent and unselectable.
+   - Successfully transcribed messages become semi-transparent and unselectable.
    - All transcriptions are stored in `transcripts.db`.
 
-5. Re‑loading / caching:
-   - When re‑scanning messages, already transcribed files are displayed as "transcribed" cards with their saved text.
+5. Re-loading / caching:
+   - When re-scanning messages, already transcribed files are displayed as "transcribed" cards with their saved text.
    - No new API calls are made for those cached entries.
 
 ---
 
 ## Language of the UI and transcriptions
 
-The web UI and the default transcription language are controlled by a simple language switcher in `index.html`.
+The web UI and the default transcription language are controlled by a small i18n helper in `index.html`.
 
 ### Default behavior
 
 By default, the app automatically chooses the language based on your browser / device language:
 
-- If your browser language starts with `de` (e.g. `de-DE`):
+- If your browser language starts with `de` (for example `de-DE`):
   - The UI will be shown in **German**.
-  - For Groq and Gemini, the backend will request **German** transcriptions.
-  - For local `whisper.cpp`, the backend **always** uses German (hard‑coded), regardless of UI language.
+  - For **Groq** and **Gemini**, the backend will request **German** transcriptions.
+  - For **local `whisper.cpp`**, the backend **always** uses German (hard-coded), regardless of UI language.
 - Otherwise:
   - The UI will be shown in **English**.
-  - For Groq and Gemini, the backend will request **English** transcriptions (or at least non‑German).
-
-You don’t have to configure anything for this – it just follows your browser language.
+  - For **Groq** and **Gemini**, the backend will request **English** (or at least non-German) transcriptions.
 
 ### Changing the UI language without changing system language
 
-If you don’t want to change your whole device language, you have two options:
+If you don’t want to change your entire device language, you have two options.
 
-#### 1. Per‑browser setting (recommended, if available)
+#### 1. Change browser language (no code changes)
 
-Some browsers allow you to override the preferred language just for the browser:
+Most browsers let you set a preferred language:
 
-- In Chrome/Firefox/Edge, look for “Languages” in the browser settings.
-- Move **English** or **Deutsch** to the top, depending on what you prefer.
-- Reload `http://127.0.0.1:5000` – the UI should switch.
+1. Open your browser settings (Chrome / Firefox / Edge, etc.).
+2. Search for **“Language”** or **“Languages”**.
+3. Move **Deutsch (German)** or **English** to the top of the list.
+4. Restart the browser or reload `http://127.0.0.1:5000`.
 
-#### 2. Force a fixed language in `index.html` (for power users)
+The UI language and the language used for Groq/Gemini transcriptions should now follow that setting.
 
-If you want the UI to **always** be in one language regardless of browser settings, you can hard‑code it:
+#### 2. Force a fixed UI language in `index.html` (code change)
+
+If you always want the UI to use one language, ignoring the browser settings, you can hard-code it.
 
 1. Open `index.html` in an editor.
-2. Find the JavaScript section at the bottom with:
+2. Find the lines near the top of the main script:
 
    ```js
    let currentLanguage = 'en'; 
    let T = translations[currentLanguage];
+   ```
+
+3. Change `'en'` to `'de'` if you want to force German, or keep `'en'` to force English, for example:
+
+   ```js
+   let currentLanguage = 'de';
+   let T = translations[currentLanguage];
+   ```
+
+4. A bit further down, inside `document.addEventListener('DOMContentLoaded', () => { ... })`, you will see:
+
+   ```js
+   detectLanguage();
+   checkProviderStatus();
+   ```
+
+   Replace the `detectLanguage();` call with a direct call to `setLanguage(currentLanguage);` so auto-detection is disabled:
+
+   ```js
+   document.addEventListener('DOMContentLoaded', () => {
+       setLanguage(currentLanguage);   // use fixed language
+       checkProviderStatus();
+
+       const messageList = document.getElementById('message-list');
+       const transcribeBtn = document.getElementById('transcribe-btn');
+       ...
+   });
+   ```
+
+Now the UI will always be in the language you set in `currentLanguage`, regardless of browser or system settings.
+
+> **Important notes**
+>
+> - **Local `whisper.cpp`** is hard-wired to German in `app.py` by default: it always uses `lang="de"` internally unless you change the code (see next section).
+> - **Groq** and **Gemini** use the current UI language (`en` or `de`) as the `lang` parameter for the backend and thus influence the transcription language.
+
+### Changing the local `whisper.cpp` transcription language
+
+By default, the local `whisper.cpp` integration always transcribes in **German** (`lang = "de"`), independent of the UI language. You can change this behavior if you want another language.
+
+> **Warning:** Changing the Whisper language may reduce accuracy for German messages. Make sure your `whisper.cpp` model supports the language you choose.
+
+1. Open `app.py` in an editor.
+2. Find the function `transcribe_with_whisper_cpp` (near the middle of the file). It looks like this (simplified):
+
+   ```python
+   def transcribe_with_whisper_cpp(audio_path, lang="de"):
+       if not HAS_WHISPER_CPP:
+           return "[FEHLER] whisper.cpp ist nicht installiert oder konfiguriert."
+
+       # FORCE GERMAN: Lokales Whisper ist für deutsche Transkription optimiert
+       # Ignoriere Frontend-Spracheinstellung
+       lang = "de"
+       ...
+   ```
+
+3. **Option A – use UI language (recommended if you want multiple languages):**
+
+   Remove or comment out the line that forces `lang = "de"` so the function uses whatever is passed in from the frontend:
+
+   ```python
+   def transcribe_with_whisper_cpp(audio_path, lang="de"):
+       if not HAS_WHISPER_CPP:
+           return "[FEHLER] whisper.cpp ist nicht installiert oder konfiguriert."
+
+       # Remove this line so the passed-in `lang` is used:
+       # lang = "de"
+       ...
+   ```
+
+   After this change, the local Whisper transcription language will follow the `lang` parameter from the frontend, which is based on the current UI language (`en` or `de`) or whatever you pass from the client.
+
+4. **Option B – hard-code a different language:**
+
+   If you always want local Whisper to use a specific language (for example English), keep the override but change the code:
+
+   ```python
+   # FORCE ENGLISH instead of German
+   lang = "en"
+   ```
+
+   You can use any language code supported by `whisper.cpp` (e.g. `en`, `de`, `es`, `fr`, `it`, etc.).
+
+5. Save `app.py` and restart the server:
+
+   ```bash
+   python app.py
+   ```
+
+Local Whisper will now use the new language setting you configured.
+
+---
 
 ## Termux widget (optional)
 
@@ -306,7 +399,7 @@ Scripts:
 
 ### Setup
 
-1. Install **Termux:Widget** from F‑Droid.
+1. Install **Termux:Widget** from F-Droid.
 2. Copy or symlink the scripts into Termux’s widget directory:
 
    ```bash
@@ -366,7 +459,7 @@ Scripts:
 
 - **"WhatsApp folder not found" in UI:**
   - Ensure `termux-setup-storage` was run and permission granted.
-  - Check the hard‑coded `WHATSAPP_PATHS` in `app.py`. You may need to add or adjust paths depending on your WhatsApp installation:
+  - Check the hard-coded `WHATSAPP_PATHS` in `app.py`. You may need to add or adjust paths depending on your WhatsApp installation:
     - `~/storage/shared/Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Voice Notes`
     - `~/storage/shared/WhatsApp/Media/WhatsApp Voice Notes`
     - `/sdcard/Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Voice Notes`
